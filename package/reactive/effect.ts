@@ -40,4 +40,5 @@ export const trigger = (target: any, key: any) => {
 export const effect = (fn: () => any) => {
   const eff = new ReactiveEffect(fn)
   eff.run()
+  return eff.run.bind(eff)
 }
