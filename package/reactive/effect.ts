@@ -1,13 +1,33 @@
-let activeEffect: any = null
+interface ReactiveEffectOptions {
+  scheduler?: any
+  onStop?: any
+}
+
+let activeEffect: ReactiveEffect | null = null
 
 export class ReactiveEffect {
   fn: any
-  constructor(fn: any, public scheduler?: any) {
+  deps: Set<ReactiveEffect>[] = []
+  scheduler?: any
+  onStop?: any
+  active: boolean = true
+  constructor(fn: any) {
     this.fn = fn
   }
   run() {
     activeEffect = this
     return this.fn()
+  }
+  stop() {
+    if (this.active) {
+      if (this.onStop) {
+        this.onStop()
+      }
+      for (const dep of this.deps) {
+        dep.delete(this)
+      }
+      this.active = false
+    }
   }
 }
 
@@ -24,8 +44,10 @@ export const track = (target: any, key: any) => {
     deps = new Set()
     depsMap.set(key, deps)
   }
-
-  deps.add(activeEffect)
+  if (activeEffect) {
+    deps.add(activeEffect)
+    activeEffect.deps.push(deps)
+  }
 }
 
 export const trigger = (target: any, key: any) => {
@@ -41,9 +63,16 @@ export const trigger = (target: any, key: any) => {
     }
   }
 }
-export const effect = (fn: () => any, options: { scheduler?: any } = {}) => {
-  const { scheduler } = options
-  const eff = new ReactiveEffect(fn, scheduler)
+export const effect = (fn: () => any, options: ReactiveEffectOptions = {}) => {
+  // const { scheduler, onStop } = options
+  const eff = new ReactiveEffect(fn)
+  Object.assign(eff, options)
   eff.run()
-  return eff.run.bind(eff)
+  const runner: any = eff.run.bind(eff)
+  runner.effect = eff
+  return runner
+}
+
+export const stop = (fn: any) => {
+  fn.effect.stop()
 }
