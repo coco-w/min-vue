@@ -2,7 +2,7 @@ let activeEffect: any = null
 
 export class ReactiveEffect {
   fn: any
-  constructor(fn: any) {
+  constructor(fn: any, public scheduler?: any) {
     this.fn = fn
   }
   run() {
@@ -33,12 +33,17 @@ export const trigger = (target: any, key: any) => {
   const deps = depsMap?.get(key)
   if (deps) {
     for (const eff of deps) {
-      eff.run()
+      if (eff.scheduler) {
+        eff.scheduler(eff.fn)
+      } else {
+        eff.run()
+      }
     }
   }
 }
-export const effect = (fn: () => any) => {
-  const eff = new ReactiveEffect(fn)
+export const effect = (fn: () => any, options: { scheduler?: any } = {}) => {
+  const { scheduler } = options
+  const eff = new ReactiveEffect(fn, scheduler)
   eff.run()
   return eff.run.bind(eff)
 }
